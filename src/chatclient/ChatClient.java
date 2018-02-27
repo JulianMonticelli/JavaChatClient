@@ -6,7 +6,6 @@
 package chatclient;
 
 import java.awt.BorderLayout;
-import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
@@ -37,6 +36,7 @@ public class ChatClient extends JFrame {
     
     private JPanel chatPanel;
     private JPanel messageBoxPanel;
+    //private AutoScrollPane scrollPane;
     private JScrollPane scrollPane;
     private JTextArea chatBox;
     private JTextField messageBox;
@@ -82,12 +82,7 @@ public class ChatClient extends JFrame {
     
     private void initChatBox() {
         chatBox = new JTextArea();
-        scrollPane = new JScrollPane(chatBox);
-        
-        // Scroll pane defaults
-        scrollPane.setPreferredSize(new Dimension(600, 400));
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-        scrollPane.setAutoscrolls(true);
+        scrollPane = new AutoScrollPane(chatBox);
         
         // Basic chatbox style
         chatBox.setEditable(false);
@@ -137,13 +132,21 @@ public class ChatClient extends JFrame {
     
     private void initSendButton() {
         sendButton = new JButton("Send");
+        sendButton.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                switch (e.getKeyCode()) {
+                    case KeyEvent.VK_ENTER:
+                        sendMessageBoxText();
+                }
+            }
+        });
         sendButton.addActionListener(
                 new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 sendMessageBoxText();
             }
-                    
                 });
     }
     

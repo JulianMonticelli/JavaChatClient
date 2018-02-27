@@ -10,9 +10,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import javax.swing.JTextArea;
 
 /**
@@ -28,12 +26,15 @@ class ServerConnectionHandler implements Runnable {
     BufferedReader in;
     PrintWriter out;
     
+    EncryptionHandler encHandler;
+    
     public ServerConnectionHandler(String ip, int port, JTextArea textBox) {
         this.textBox = textBox;
         try {
             sock = new Socket(ip, port);
             in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
             out = new PrintWriter(sock.getOutputStream());
+            encHandler = new EncryptionHandler();
         } catch (IOException e) {
             textBox.append("Could not establish a connection with the provided" 
                     + " host. Are you sure " + ip + ":" + port + " is both"
@@ -44,13 +45,46 @@ class ServerConnectionHandler implements Runnable {
     @Override
     public void run() {
         if (sock == null) return;
+        
+        String buffer;
+        
         try {
-            String buffer;
+            out.println(encHandler.generatePublicKeyMessage());
+            out.flush();
             while ((buffer = in.readLine()) != null) {
-                textBox.append(buffer + "\n");
-                if (buffer.equals("goodbye:)")) {
+                if (!buffer.startsWith("!!PUBK:")) {
+                    kill();
+                    return;
+                } else {
+                    String pubKey = buffer.substring(7);
+                    try {
+                        encHandler.initEncryptionHandler(pubKey);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        kill();
+                        return;
+                    }
+                }
+                break;
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            kill();
+            return;
+        }
+        
+        try {
+            while ((buffer = in.readLine()) != null) {
+                String message = encHandler.decryptMessage(buffer);
+                if (message.equals("<BYE>")) {
                     break;
                 }
+                else if (message.startsWith("<UMSG>")) {
+                    message = message.substring(6);
+                } else if (message.startsWith("<RAW>")) {
+                    message = message.substring(5);
+                }
+                textBox.append(message + "\n");
             }
         } catch (IOException e) {
             textBox.append(e.toString());
@@ -61,7 +95,7 @@ class ServerConnectionHandler implements Runnable {
     
     public void disconnect() {
         if (sock != null) {
-            send("/disconnect");
+            send("/disconnect");  
         }
     }
     
@@ -84,13 +118,13 @@ class ServerConnectionHandler implements Runnable {
         } catch (IOException ex) {
             textBox.append(ex.toString());
         } finally {
-            textBox.append("Connection from server has been killed.\n");
+            textBox.append("Connection to server has been killed.\n");
         }
     }
 
     public void send(String text) {
         if (out == null) return;
-        out.println(text);
+        out.println(encHandler.encryptMessage(text));
         out.flush();
     }
     
