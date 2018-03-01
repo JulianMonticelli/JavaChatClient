@@ -29,7 +29,9 @@ class ServerConnectionHandler implements Runnable {
     EncryptionHandler encHandler;
     
     public ServerConnectionHandler(String ip, int port, JTextArea textBox) {
+        
         this.textBox = textBox;
+        
         try {
             sock = new Socket(ip, port);
             in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
@@ -42,6 +44,10 @@ class ServerConnectionHandler implements Runnable {
         }
     }
     
+    /***************************************************************************
+     * The bulk of the client-server connection thread code. Exchanges public
+     * keys with the server and loops looking for input from the server.
+     */
     @Override
     public void run() {
         if (sock == null) return;
@@ -49,8 +55,12 @@ class ServerConnectionHandler implements Runnable {
         String buffer;
         
         try {
+            
+            // Push our public session key to the server
             out.println(encHandler.generatePublicKeyMessage());
             out.flush();
+            
+            // Await a public session key from the server in response
             while ((buffer = in.readLine()) != null) {
                 if (!buffer.startsWith("!!PUBK:")) {
                     kill();
@@ -73,9 +83,18 @@ class ServerConnectionHandler implements Runnable {
             return;
         }
         
+        // While the connection is alive, continuously await a message from the
+        // server
         try {
             while ((buffer = in.readLine()) != null) {
-                String message = encHandler.decryptMessage(buffer);
+                String message;
+                try {
+                    message = encHandler.decipherMessage(buffer);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    kill();
+                    return;
+                }
                 if (message.equals("<BYE>")) {
                     break;
                 }
@@ -93,15 +112,24 @@ class ServerConnectionHandler implements Runnable {
         }
     }
     
+    /***************************************************************************
+     * Disconnect from the client by sending a disconnect command to the server.
+     */
     public void disconnect() {
+        // Disconnect by sending a disconnect command
         if (sock != null) {
             send("/disconnect");  
         }
     }
     
+    /***************************************************************************
+     * Kill the connection to the server. Also, append a message that the server
+     * has been killed.
+     */
     public void kill() {
+        
+        // Code works, but there may be a better way to do this.
         try {
-            // WARNING: This might be bad code!
             if (in != null) {
                 in.close();
             }
@@ -122,9 +150,21 @@ class ServerConnectionHandler implements Runnable {
         }
     }
 
+    
+    /***************************************************************************
+     * Send a message to the server which is 
+     * @param text 
+     */
     public void send(String text) {
         if (out == null) return;
-        out.println(encHandler.encryptMessage(text));
+        try {
+            out.println(
+                    encHandler.encodeMessage(EncryptionHandler.getNewAESKey(),
+                            text));
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
         out.flush();
     }
     
