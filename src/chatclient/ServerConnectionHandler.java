@@ -62,11 +62,15 @@ class ServerConnectionHandler implements Runnable {
             
             // Await a public session key from the server in response
             while ((buffer = in.readLine()) != null) {
-                if (!buffer.startsWith("!!PUBK:")) {
+                if (!buffer.startsWith(EncryptionHandler.PUBLIC_KEY_PREFIX)) {
                     kill();
                     return;
                 } else {
-                    String pubKey = buffer.substring(7);
+                    if (!buffer.startsWith(EncryptionHandler.PUBLIC_KEY_PREFIX)) {
+                        kill();
+                        return;
+                    }
+                    String pubKey = buffer.substring(EncryptionHandler.PUBLIC_KEY_PREFIX.length());
                     try {
                         encHandler.initEncryptionHandler(pubKey);
                     } catch (Exception e) {

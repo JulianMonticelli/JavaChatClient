@@ -181,11 +181,17 @@ public class ChatClient extends JFrame {
                     host = JOptionPane.showInputDialog(null, "Please enter a"
                         + " valid hostname/IP to connect to", "Enter Host",
                         JOptionPane.QUESTION_MESSAGE);
+                    if (host == null) {
+                        return;
+                    }
                 }
                 while (ip == 0) {
                     String ipStr = JOptionPane.showInputDialog(null, "Please"
                             + " enter a valid port.", "Enter Port", 
                             JOptionPane.QUESTION_MESSAGE);
+                    if (ipStr == null) {
+                        return;
+                    }
                     try {
                         ip = Integer.parseInt(ipStr);
                     } catch (NumberFormatException ex) {
@@ -193,7 +199,7 @@ public class ChatClient extends JFrame {
                     }
                 }
                 
-                if (ip < 0) return; 
+                if (ip < 0 || ip > 65535) return; 
                 
                 // Kill previous server connection if there is one
                 if (serverConnectionHandler != null) {
